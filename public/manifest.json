@@ -1,0 +1,34 @@
+
+{
+  "name": "FI Investments",
+  "short_name": "FI Invest",
+  "description": "Ihre maßgeschneiderte Finanzplattform für smarte Investments",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#003595",
+  "icons": [
+    {
+      "src": "/lovable-uploads/35cc91ea-a5f3-495d-bda8-c0f79689c2f9.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/lovable-uploads/35cc91ea-a5f3-495d-bda8-c0f79689c2f9.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "itunes",
+      "id": "app.lovable.5f1e37a5c3504a1b8d6ca71c6f3157ba"
+    },
+    {
+      "platform": "play",
+      "id": "app.lovable.5f1e37a5c3504a1b8d6ca71c6f3157ba"
+    }
+  ],
+  "prefer_related_applications": true,
+  "orientation": "portrait"
+}

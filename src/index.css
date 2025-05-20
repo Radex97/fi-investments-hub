@@ -1,0 +1,144 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 220 70% 40%; /* Approximating the blue */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 42 40% 50%; /* Approximating the gold */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 42 40% 50%; /* Same as secondary */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+    font-family: 'Inter', sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* For native iOS app - handle safe areas */
+  .ios-app {
+    --safe-area-top: env(safe-area-inset-top);
+    --safe-area-bottom: env(safe-area-inset-bottom);
+    --safe-area-left: env(safe-area-inset-left);
+    --safe-area-right: env(safe-area-inset-right);
+    
+    padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
+  }
+  
+  .ios-app header {
+    padding-top: var(--safe-area-top);
+  }
+  
+  .ios-app .fixed-bottom,
+  .ios-app footer.fixed {
+    padding-bottom: var(--safe-area-bottom);
+  }
+  
+  /* Native platform specific styling */
+  .native-app .web-only {
+    display: none !important;
+  }
+  
+  /* Web platform specific styling */
+  body:not(.native-app) .native-only {
+    display: none !important;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply backdrop-blur-md bg-white/80 shadow-md border border-white/20 rounded-lg;
+  }
+  
+  .fi-button {
+    @apply bg-fi-gold text-white py-3 px-6 rounded-lg transition-all duration-300 ease-out hover:bg-opacity-90 hover:text-white active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-fi-gold/40;
+  }
+  
+  .fi-button-outline {
+    @apply bg-transparent border border-fi-gold text-fi-gold py-3 px-6 rounded-lg transition-all duration-300 ease-out hover:bg-fi-gold/10 hover:text-fi-gold active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-fi-gold/40;
+  }
+  
+  .fi-section {
+    @apply py-12 px-6 md:px-12 transition-all duration-500 ease-out;
+  }
+
+  .fi-fade-in {
+    @apply opacity-0 animate-fade-in;
+  }
+  
+  .fi-fade-up {
+    @apply opacity-0 animate-fade-up;
+  }
+
+  .fi-card {
+    @apply bg-white rounded-xl shadow-md transition-all duration-300 hover:shadow-lg overflow-hidden;
+  }
+
+  .fi-icon {
+    @apply text-fi-gold text-2xl transition-all duration-300 ease-out;
+  }
+
+  .menu-active {
+    @apply transform transition-transform duration-300 rotate-90;
+  }
+}
+
+.fi-delay-1 {
+  animation-delay: 0.1s;
+}
+
+.fi-delay-2 {
+  animation-delay: 0.2s;
+}
+
+.fi-delay-3 {
+  animation-delay: 0.3s;
+}
+
+.fi-delay-4 {
+  animation-delay: 0.4s;
+}
+
+.fi-delay-5 {
+  animation-delay: 0.5s;
+}
