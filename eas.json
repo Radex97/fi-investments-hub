@@ -1,21 +1,21 @@
 {
-  "cli": { "version": ">= 16.6.1", "appVersionSource": "remote" },
-
+  "cli": {
+    "version": ">= 16.6.1",
+    "appVersionSource": "remote"
+  },
   "build": {
     "development": {
-      "workflow": "generic",
       "developmentClient": true,
       "distribution": "internal"
     },
     "preview": {
-      "workflow": "generic",
       "distribution": "internal"
     },
     "production": {
-      "workflow": "generic",        // ← zwingt Generic
       "autoIncrement": true
     }
   },
-
-  "submit": { "production": {} }
+  "submit": {
+    "production": {}
+  }
 }
