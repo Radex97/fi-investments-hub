@@ -1,10 +1,8 @@
 {
   "cli": {
--    "version": ">= 16.6.1",
--    "appVersionSource": "remote"
-+    "version": ">= 16.6.1",
-+    "appVersionSource": "remote",
-+    "packageManager": "npm"       // ← hiermit zwingst du npm-CI
+    "version": ">= 16.6.1",
+    "appVersionSource": "remote",
+    "packageManager": "npm"
   },
   "build": {
     "development": {
