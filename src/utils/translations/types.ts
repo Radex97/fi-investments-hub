@@ -85,7 +85,8 @@ export type TranslationKey = keyof typeof deTranslations
   | 'passwordMinLength'
   | 'confirmPasswordRequired'
   | 'passwordsMustMatch'
-  | 'mustAcceptTerms';
+  | 'mustAcceptTerms'
+  | 'continueLegitimation';  // Added the missing key
 
 // Define the Language type
 export type Language = 'de' | 'en' | 'it';

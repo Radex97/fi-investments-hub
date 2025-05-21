@@ -44,6 +44,7 @@ export const enTranslations = {
   signing: "Signing",
   legitimation: "Legitimation",
   startLegitimation: "Start Legitimation",
+  continueLegitimation: "Continue Legitimation", // Added the new translation
   checkLegitimation: "Check Legitimation",
   acceptance: "Acceptance",
   backToDashboard: "Back to Dashboard",

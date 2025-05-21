@@ -44,6 +44,7 @@ export const deTranslations = {
   signing: "Unterzeichnung",
   legitimation: "Legitimation",
   startLegitimation: "Legitimation starten",
+  continueLegitimation: "Legitimation fortsetzen", // Added the new translation
   checkLegitimation: "Legitimation prüfen",
   acceptance: "Annahme",
   backToDashboard: "Zurück zum Dashboard",

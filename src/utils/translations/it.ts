@@ -44,6 +44,7 @@ export const itTranslations = {
   signing: "Firma",
   legitimation: "Legittimazione",
   startLegitimation: "Avvia legittimazione",
+  continueLegitimation: "Continua legittimazione", // Added the new translation
   checkLegitimation: "Controlla legittimazione",
   acceptance: "Accettazione",
   backToDashboard: "Torna alla dashboard",
