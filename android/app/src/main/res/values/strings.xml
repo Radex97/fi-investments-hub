@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">fi-investments-hub</string>
+    <string name="title_activity_main">fi-investments-hub</string>
+    <string name="package_name">com.fiinvestments.app</string>
+    <string name="custom_url_scheme">com.fiinvestments.app</string>
+</resources>

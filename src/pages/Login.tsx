@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { signIn, signInWithGoogle, signInWithApple } = useAuth();
 
@@ -26,28 +27,46 @@ const Login = () => {
     }
     
     try {
+      setIsLoading(true);
       await signIn(email, password);
+      
+      // Setze den Loading-Status zurück, wenn der Login-Prozess abgeschlossen ist
+      // Ein Timeout wird verwendet, um sicherzustellen, dass die Navigation Zeit hat zu erfolgen
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 2000);
     } catch (error) {
       // Error handling is done in AuthContext
       console.error("Login error:", error);
+      setIsLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
     try {
+      setIsLoading(true);
       await signInWithGoogle();
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 2000);
     } catch (error) {
       // Error handling is done in AuthContext
       console.error("Google login error:", error);
+      setIsLoading(false);
     }
   };
 
   const handleAppleSignIn = async () => {
     try {
+      setIsLoading(true);
       await signInWithApple();
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 2000);
     } catch (error) {
       // Error handling is done in AuthContext
       console.error("Apple login error:", error);
+      setIsLoading(false);
     }
   };
 
@@ -80,6 +99,7 @@ const Login = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full p-3 border-gray-300"
+                    disabled={isLoading}
                   />
                 </div>
                 <div>
@@ -89,6 +109,7 @@ const Login = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full p-3 border-gray-300"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -99,9 +120,19 @@ const Login = () => {
                 </Link>
               </div>
               
-              <Button type="submit" className="w-full bg-fi-blue hover:bg-opacity-90 text-white py-3">
-                Anmelden
+              <Button 
+                type="submit" 
+                className="w-full bg-fi-blue hover:bg-opacity-90 text-white py-3"
+                disabled={isLoading}
+              >
+                {isLoading ? "Anmeldung läuft..." : "Anmelden"}
               </Button>
+              
+              {isLoading && (
+                <div className="text-center text-sm text-gray-500 mt-2">
+                  Bitte warten Sie, während die Anmeldung verarbeitet wird...
+                </div>
+              )}
               
               <div className="relative my-8">
                 <div className="absolute inset-0 flex items-center">
@@ -118,6 +149,7 @@ const Login = () => {
                   variant="outline" 
                   className="w-full border-gray-300 p-3 flex items-center justify-center gap-2"
                   onClick={handleGoogleSignIn}
+                  disabled={isLoading}
                 >
                   <svg className="w-5 h-5 text-fi-gold" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -133,6 +165,7 @@ const Login = () => {
                   variant="outline" 
                   className="w-full border-gray-300 p-3 flex items-center justify-center gap-2"
                   onClick={handleAppleSignIn}
+                  disabled={isLoading}
                 >
                   <svg className="w-5 h-5 text-fi-gold" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M16.52 1c-2.77 0-4.18 1.6-5.2 3.02-.87-1.53-2.03-3.04-4.53-3.04C3.75 1 1 3.71 1 9.13c0 4.86 3.2 9.8 6.08 13.87h.31c1.78-2.19 2.88-4.16 2.91-4.22.33.67 2.08 4.2 2.95 4.22 3.26-4.09 6.75-9.04 6.75-13.87C20 3.71 18.6 1 16.52 1z"/>

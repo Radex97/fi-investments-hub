@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ReactMarkdown from 'react-markdown';
+import { Capacitor } from '@capacitor/core';
 
 interface Message {
   id: string;
@@ -36,6 +37,7 @@ const SupportChat = ({ isOpen, onClose }: SupportChatProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const isNative = Capacitor.isNativePlatform();
 
   // Generate a new chatId when the chat is opened
   useEffect(() => {
@@ -124,19 +126,39 @@ const SupportChat = ({ isOpen, onClose }: SupportChatProps) => {
     
     // Send to webhook
     try {
-      const response = await fetch('https://agent.snipe-solutions.de/webhook/fi-chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          message: newMessage,
-          userId: user.id,
-          chatId: chatId
-        })
+      console.log(`Sending message to webhook as ${isNative ? 'native app' : 'web app'}`);
+      
+      const webhookUrl = 'https://agent.snipe-solutions.de/webhook/fi-chat';
+      const requestBody = JSON.stringify({
+        message: newMessage,
+        userId: user.id,
+        chatId: chatId,
+        platform: Capacitor.getPlatform()
       });
       
+      console.log('Request payload:', requestBody);
+      
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Origin': 'capacitor://localhost',
+          'X-Client-Info': `fi-investments-app/${Capacitor.getPlatform()}`
+        },
+        body: requestBody
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      console.log('Response content type:', contentType);
+      
       const data = await response.json();
+      console.log('Webhook response:', data);
+      
       const aiResponseText = data.output || "Danke für Ihre Nachricht. Ein Mitarbeiter wird sich in Kürze bei Ihnen melden.";
       const format = detectFormat(aiResponseText);
       

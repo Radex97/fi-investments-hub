@@ -34,6 +34,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   // Track if navigation should happen (only for actual sign in/out actions)
   const shouldNavigateRef = useRef(false);
+  // Track login attempts to prevent multiple error toasts
+  const loginAttemptInProgressRef = useRef(false);
+  // Track admin role check attempts to prevent infinite retries
+  const adminRoleCheckAttempts = useRef(0);
 
   // Check admin role
   useEffect(() => {
@@ -43,9 +47,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Reset attempt counter when user changes
+    adminRoleCheckAttempts.current = 0;
+
     const checkAdminRole = async () => {
       try {
-        console.log("AuthContext: Checking admin role for user ID:", user.id);
+        // Limit the number of attempts to prevent infinite loops
+        if (adminRoleCheckAttempts.current >= 3) {
+          console.log("AuthContext: Too many admin role check attempts, skipping");
+          setIsAdmin(false);
+          setAdminLoading(false);
+          return;
+        }
+        
+        adminRoleCheckAttempts.current++;
+        console.log("AuthContext: Checking admin role for user ID:", user.id, "Attempt:", adminRoleCheckAttempts.current);
+        
+        // Kurze Verzögerung für die Netzwerkstabilisierung
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         const { data, error } = await supabase
           .from('profiles')
@@ -55,12 +74,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (error) {
           console.error('AuthContext: Error checking admin role:', error);
+          
+          // Wenn der Fehler "Load failed" ist, behandeln wir ihn besonders
+          if (error.message === "TypeError: Load failed") {
+            console.log("Network issue detected while checking admin role, defaulting to non-admin");
+          }
+          
           setIsAdmin(false);
           return;
         }
 
         console.log('AuthContext: Role data:', data);
-        const hasAdminRole = data?.role === 'admin';
+        // Vorsichtige Prüfung, ob data und data.role existieren
+        const hasAdminRole = data && typeof data === 'object' && 'role' in data && data.role === 'admin';
         console.log('AuthContext: Is admin:', hasAdminRole);
         setIsAdmin(hasAdminRole);
       } catch (err) {
@@ -76,52 +102,109 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('Auth state changed:', event);
+    try {
+      console.log('Setting up Supabase auth listener...');
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          console.log('Auth state changed:', event, session ? 'session exists' : 'no session');
+          setSession(session);
+          setUser(session?.user ?? null);
+
+          // Reset login attempt flag if we detect successful auth
+          if (session) {
+            loginAttemptInProgressRef.current = false;
+          }
+
+          // Only navigate on explicit sign in/out events, not on token refresh
+          if (event === 'SIGNED_IN' && shouldNavigateRef.current) {
+            shouldNavigateRef.current = false;
+            navigate('/dashboard');
+          } else if (event === 'SIGNED_OUT') {
+            navigate('/');
+          }
+        }
+      );
+
+      // Check for existing session on initial load without redirecting
+      console.log('Checking for existing session...');
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        console.log('Initial session check:', session ? 'session exists' : 'no session');
         setSession(session);
         setUser(session?.user ?? null);
-
-        // Only navigate on explicit sign in/out events, not on token refresh
-        if (event === 'SIGNED_IN' && shouldNavigateRef.current) {
-          shouldNavigateRef.current = false;
+        setIsInitialized(true);
+        
+        // Wenn wir eine Session haben, aber auf der Login-Seite sind, zum Dashboard navigieren
+        if (session && window.location.pathname === '/login') {
           navigate('/dashboard');
-        } else if (event === 'SIGNED_OUT') {
-          navigate('/');
         }
-      }
-    );
+      }).catch(err => {
+        console.error('Error getting session:', err);
+        setIsInitialized(true);
+      });
 
-    // Check for existing session on initial load without redirecting
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      return () => {
+        console.log('Unsubscribing from auth listener...');
+        subscription.unsubscribe();
+      };
+    } catch (err) {
+      console.error('Error in auth setup:', err);
       setIsInitialized(true);
-    });
-
-    return () => subscription.unsubscribe();
+      return () => {};
+    }
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Wenn bereits ein Login-Versuch läuft, abbrechen
+      if (loginAttemptInProgressRef.current) {
+        console.log('Login attempt already in progress, skipping duplicate call');
+        return;
+      }
+      
+      console.log('Attempting to sign in with email/password...');
       // Set flag to navigate after sign-in
       shouldNavigateRef.current = true;
+      loginAttemptInProgressRef.current = true;
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sign in error:', error);
+        loginAttemptInProgressRef.current = false;
+        throw error;
+      }
 
+      console.log('Sign in successful:', data.user?.id);
+      // Erfolgsmeldung nur anzeigen, wenn kein Fehler auftrat
       toast({
         title: "Erfolgreich angemeldet",
         description: "Sie werden zum Dashboard weitergeleitet...",
       });
+      
+      // Explizite Navigation, falls der Event-Listener nicht triggert
+      setTimeout(() => {
+        if (shouldNavigateRef.current) {
+          shouldNavigateRef.current = false;
+          navigate('/dashboard');
+        }
+      }, 500);
     } catch (error: any) {
+      console.error('Sign in exception:', error);
+      loginAttemptInProgressRef.current = false;
+      
+      // Vermeiden wiederholter Fehlermeldungen für RetryableFetchError
+      if (error.__isAuthError && error.name === "AuthRetryableFetchError") {
+        // Netzwerkfehler - keine Toast-Meldung, nur Logging
+        console.log("Netzwerkfehler bei der Authentifizierung - wird automatisch wiederholt");
+        return;
+      }
+      
       toast({
         title: "Anmeldung fehlgeschlagen",
-        description: error.message,
+        description: error.message || "Ein unbekannter Fehler ist aufgetreten.",
         variant: "destructive",
       });
       throw error;
@@ -130,26 +213,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
+      console.log('Attempting to sign in with Google...');
       // Set flag to navigate after sign-in
       shouldNavigateRef.current = true;
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/dashboard`
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Google sign in error:', error);
+        throw error;
+      }
 
+      console.log('Google sign in initiated:', data);
       toast({
         title: "Google Anmeldung",
         description: "Bitte folgen Sie den Anweisungen im neuen Fenster...",
       });
     } catch (error: any) {
+      console.error('Google sign in exception:', error);
       toast({
         title: "Google Anmeldung fehlgeschlagen",
-        description: error.message,
+        description: error.message || "Ein unbekannter Fehler ist aufgetreten.",
         variant: "destructive",
       });
       throw error;

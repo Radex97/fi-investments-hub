@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="de">
   <head>
@@ -11,6 +10,40 @@
     <meta property="og:title" content="FI Investments | Finanzielle Zukunft gestalten" />
     <meta property="og:description" content="Entdecken Sie maßgeschneiderte Finanzlösungen für Ihre individuellen Bedürfnisse." />
     <meta name="theme-color" content="#003595" />
+    
+    <!-- Polyfill für Notification API -->
+    <script>
+      if (typeof Notification === 'undefined') {
+        // Dummy-Implementierung der Notification API
+        window.Notification = {
+          permission: "granted",
+          requestPermission: function() {
+            return Promise.resolve("granted");
+          }
+        };
+        
+        // Notification als Konstruktor bereitstellen
+        window.Notification = function(title, options) {
+          console.log('Notification (Polyfill):', title, options);
+          return {
+            title: title,
+            options: options,
+            close: function() {}
+          };
+        };
+        
+        // Statische Eigenschaften und Methoden
+        window.Notification.permission = "granted";
+        window.Notification.requestPermission = function() {
+          return Promise.resolve("granted");
+        };
+        
+        console.log('Notification API Polyfill aktiviert');
+      }
+    </script>
+    
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' capacitor: ionic:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co https://*.supabase.co https://*.supabase.in; connect-src 'self' https://*.gpteng.co https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com https://*.supabase.co https://*.supabase.in https://auth.supabase.co https://api.supabase.co https://identity.supabase.com wss://*.supabase.co https://functions.*.supabase.co https://agent.snipe-solutions.de; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://* blob:; media-src 'self' https://* blob:;">
     
     <!-- PWA support -->
     <link rel="manifest" href="/manifest.json" />

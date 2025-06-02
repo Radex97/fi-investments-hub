@@ -1,0 +1,110 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Set up code signing"
+  lane :setup_signing do
+    # Verwenden Sie App Store Connect API-Schlüssel wenn möglich
+    app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_filepath: ENV["ASC_KEY_PATH"],
+      duration: 1200, # Optional
+      in_house: false # Optional
+    ) if ENV["ASC_KEY_ID"] && ENV["ASC_ISSUER_ID"] && ENV["ASC_KEY_PATH"]
+    
+    match(type: "appstore", readonly: true)
+  end
+
+  desc "Push a new beta build to TestFlight"
+  lane :beta do
+    setup_signing
+    increment_build_number(xcodeproj: "App.xcodeproj")
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: "App.xcodeproj",
+      team_id: "5J9536N4H3",
+      profile_name: "match AppStore com.fiinvestments.app",
+      code_sign_identity: "Apple Distribution"
+    )
+    build_app(workspace: "App.xcworkspace", scheme: "App")
+    upload_to_testflight
+  end
+
+  desc "Rename the app to 'FI Investments'"
+  lane :rename_app do
+    # Ändern des App-Namens in der Info.plist
+    update_info_plist(
+      plist_path: "App/Info.plist",
+      display_name: "FI Investments"
+    )
+    
+    # Aktualisiere auch den Namen in der Xcode-Projektdatei
+    update_app_identifier(
+      xcodeproj: "App.xcodeproj",
+      plist_path: "App/Info.plist",
+      app_identifier: "com.fiinvestments.app" # Behält die Bundle-ID bei
+    )
+    
+    puts "App wurde erfolgreich in 'FI Investments' umbenannt!"
+  end
+  
+  desc "Ändert den App-Namen in App Store Connect"
+  lane :update_app_store_name do
+    deliver(
+      app_identifier: "com.fiinvestments.app",
+      username: "vito.micoli@fi.group",
+      app_version: "1.0",
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: false,
+      name: {
+        'de-DE' => 'FI Investments',
+        'en-US' => 'FI Investments'
+      },
+      force: true # Erzwinge das Update auch wenn Validierung fehlschlägt
+    )
+  end
+  
+  desc "Aktuellen Build für externe Tester in TestFlight freigeben"
+  lane :distribute_external do
+    # Verwende die pilot-Aktion (TestFlight-Aktion), um den neuesten Build für externe Tester freizugeben
+    pilot(
+      app_identifier: "com.fiinvestments.app",
+      username: "vito.micoli@fi.group",
+      distribute_external: true,
+      changelog: "Dies ist eine Testversion der FI Investments App.",
+      groups: ["External Testers"], # Optional: Name der Gruppe für externe Tester
+      demo_account_required: false,
+      beta_app_review_info: {
+        contact_email: "vito.micoli@fi.group",
+        contact_first_name: "Vito",
+        contact_last_name: "Micoli",
+        contact_phone: "+49 1234567890"
+      },
+      localized_app_info: {
+        "default": {
+          feedback_email: "vito.micoli@fi.group",
+          marketing_url: nil,
+          privacy_policy_url: nil,
+          description: "FI Investments App"
+        }
+      },
+      uses_non_exempt_encryption: false
+    )
+  end
+end

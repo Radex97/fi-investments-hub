@@ -1,12 +1,41 @@
-
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Capacitor } from '@capacitor/core';
 
 // Firebase config wird dynamisch aus Supabase Edge Function geladen
 let firebaseApp: any = null;
 let messagingInstance: any = null;
+
+// Globale Variable, die Notification-Features deaktiviert
+const NOTIFICATIONS_ENABLED = false;
+
+// Prüfe, ob die Web Notification API verfügbar ist
+const isNotificationSupported = () => {
+  // Auf iOS geben wir immer false zurück, um Probleme zu vermeiden
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+    return false;
+  }
+  
+  // Auf anderen Plattformen prüfen wir die tatsächliche Verfügbarkeit
+  return typeof window !== 'undefined' && 
+         'Notification' in window && 
+         NOTIFICATIONS_ENABLED;
+};
+
+// Sicherer Zugriff auf Notification.permission
+const getNotificationPermission = () => {
+  if (isNotificationSupported()) {
+    return window.Notification.permission;
+  }
+  return "default"; // Standardwert zurückgeben, wenn nicht unterstützt
+};
+
+// Prüfe, ob wir auf einer nativen Plattform sind
+const isNativePlatform = () => {
+  return Capacitor.isNativePlatform();
+};
 
 // Initialisiere Firebase mit config
 const initializeFirebaseApp = async () => {
@@ -62,37 +91,70 @@ const saveFCMToken = async (token: string) => {
   }
 };
 
+// Sichere Methode zum Anfordern von Benachrichtigungsberechtigungen
+const requestNotificationPermissionSafely = async () => {
+  if (!isNotificationSupported()) {
+    console.log("Notifications not supported, skipping permission request");
+    return "granted"; // Auf nativen Plattformen nehmen wir an, dass es erlaubt ist
+  }
+  
+  try {
+    return await window.Notification.requestPermission();
+  } catch (err) {
+    console.error("Error requesting notification permission:", err);
+    return "denied";
+  }
+};
+
 // Request permission and get token
 export const requestNotificationPermission = async () => {
   try {
-    const permission = await Notification.requestPermission();
+    // Wenn wir auf iOS sind, ignorieren wir den Benachrichtigungsprozess
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+      console.log("Skipping notifications on iOS");
+      return false;
+    }
     
-    if (permission === "granted") {
-      // Initialize Firebase app if not already initialized
-      const app = await initializeFirebaseApp();
-      if (!app) {
+    // Wenn wir auf einer nativen Plattform sind und Notification nicht verfügbar ist,
+    // können wir den anderen Code trotzdem ausführen
+    let permission = "granted";
+    
+    if (isNotificationSupported()) {
+      permission = await requestNotificationPermissionSafely();
+      if (permission !== "granted") {
+        console.log("Notification permission denied");
         return false;
       }
-
-      // Get messaging instance
-      messagingInstance = getMessaging(app);
-      
-      // Get the FCM token
-      const currentToken = await getToken(messagingInstance, {
-        vapidKey: "YOUR_VAPID_KEY" // Replace with your VAPID key
-      });
-      
-      if (currentToken) {
-        console.log("FCM token:", currentToken);
-        // Save the token to Supabase
-        await saveFCMToken(currentToken);
-        return true;
-      } else {
-        console.log("No registration token available");
-        return false;
-      }
+    } else if (isNativePlatform()) {
+      console.log("Running on native platform, skipping web Notification permission");
+      // Auf native Plattformen verwenden wir die native Benachrichtigungsfunktion
+      // Die genaue Implementierung wäre hier zusätzlich erforderlich
     } else {
-      console.log("Notification permission denied");
+      console.log("Notifications not supported in this environment");
+      return false;
+    }
+    
+    // Initialize Firebase app if not already initialized
+    const app = await initializeFirebaseApp();
+    if (!app) {
+      return false;
+    }
+
+    // Get messaging instance
+    messagingInstance = getMessaging(app);
+    
+    // Get the FCM token
+    const currentToken = await getToken(messagingInstance, {
+      vapidKey: "YOUR_VAPID_KEY" // Replace with your VAPID key
+    });
+    
+    if (currentToken) {
+      console.log("FCM token:", currentToken);
+      // Save the token to Supabase
+      await saveFCMToken(currentToken);
+      return true;
+    } else {
+      console.log("No registration token available");
       return false;
     }
   } catch (err) {
@@ -126,33 +188,81 @@ export const onMessageListener = () => {
 
 // Initialize Firebase messaging
 export const initializeFirebaseMessaging = async () => {
-  if ("serviceWorker" in navigator && "PushManager" in window) {
+  try {
+    // Auf iOS überspringen wir die Firebase-Messaging-Initialisierung
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+      console.log("Skipping Firebase messaging on iOS");
+      return;
+    }
+    
+    // Frühzeitig prüfen, ob notwendige APIs verfügbar sind
+    if (!("serviceWorker" in navigator)) {
+      console.log("Service workers not supported");
+      return;
+    }
+
+    const supportsPush = "PushManager" in window || isNativePlatform();
+    if (!supportsPush) {
+      console.log("Push messaging not supported");
+      return;
+    }
+    
+    // Falls Web Notifications nicht unterstützt werden, beenden wir hier
+    if (!isNotificationSupported() && !isNativePlatform()) {
+      console.log("Web Notifications not supported");
+      return;
+    }
+    
+    // Initialize Firebase app
+    const app = await initializeFirebaseApp();
+    if (!app) return;
+    
+    // Get messaging instance
     try {
-      // Initialize Firebase app
-      const app = await initializeFirebaseApp();
-      if (!app) return;
-      
       messagingInstance = getMessaging(app);
       
       const registration = await navigator.serviceWorker.ready;
       console.log("Service Worker is ready");
       
-      // Check if notifications are already permitted
-      if (Notification.permission === "granted") {
-        const token = await getToken(messagingInstance, {
-          vapidKey: "YOUR_VAPID_KEY", // Replace with your VAPID key
-          serviceWorkerRegistration: registration
-        });
-        
-        if (token) {
-          saveFCMToken(token);
+      // Sichere Überprüfung des Notification-Status
+      const notificationPermission = getNotificationPermission();
+      
+      if (notificationPermission === "granted") {
+        try {
+          const token = await getToken(messagingInstance, {
+            vapidKey: "YOUR_VAPID_KEY", // Replace with your VAPID key
+            serviceWorkerRegistration: registration
+          });
+          
+          if (token) {
+            saveFCMToken(token);
+          }
+        } catch (tokenErr) {
+          console.error("Error getting token:", tokenErr);
+        }
+      } else if (isNativePlatform()) {
+        // Für native Plattformen könnten wir hier den Token auf andere Weise abrufen
+        console.log("Native platform detected, trying to get token");
+        try {
+          const token = await getToken(messagingInstance, {
+            vapidKey: "YOUR_VAPID_KEY", // Replace with your VAPID key
+            serviceWorkerRegistration: registration
+          });
+          
+          if (token) {
+            saveFCMToken(token);
+          }
+        } catch (tokenErr) {
+          console.error("Error getting token on native platform:", tokenErr);
         }
       }
       
       // Set up message listener for foreground messages
       onMessageListener();
-    } catch (err) {
-      console.error("Error initializing Firebase messaging:", err);
+    } catch (messagingErr) {
+      console.error("Error setting up Firebase messaging:", messagingErr);
     }
+  } catch (err) {
+    console.error("Error initializing Firebase messaging:", err);
   }
 };
