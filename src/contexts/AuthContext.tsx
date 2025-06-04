@@ -66,29 +66,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Kurze Verzögerung für die Netzwerkstabilisierung
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
+        // Retry-Logik für robuste Netzwerk-Calls
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        while (attempts < maxAttempts) {
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', user.id)
+              .single();
 
-        if (error) {
-          console.error('AuthContext: Error checking admin role:', error);
-          
-          // Wenn der Fehler "Load failed" ist, behandeln wir ihn besonders
-          if (error.message === "TypeError: Load failed") {
-            console.log("Network issue detected while checking admin role, defaulting to non-admin");
+            if (error) {
+              throw error;
+            }
+
+            console.log('AuthContext: Role data:', data);
+            // Vorsichtige Prüfung, ob data und data.role existieren
+            const hasAdminRole = data && typeof data === 'object' && 'role' in data && data.role === 'admin';
+            console.log('AuthContext: Is admin:', hasAdminRole);
+            setIsAdmin(hasAdminRole);
+            return; // Erfolgreicher Aufruf, beende die Funktion
+          } catch (error: any) {
+            attempts++;
+            console.error(`AuthContext: Admin role check attempt ${attempts} failed:`, error);
+            
+            // Prüfe auf Netzwerkfehler
+            const isNetworkError = 
+              error.message === "TypeError: Load failed" ||
+              error.message?.includes('network') ||
+              error.message?.includes('connection') ||
+              error.code === 'NSURLErrorDomain';
+            
+            if (isNetworkError && attempts < maxAttempts) {
+              console.log(`Network issue detected while checking admin role, retrying in ${attempts * 1000}ms...`);
+              await new Promise(resolve => setTimeout(resolve, attempts * 1000));
+              continue;
+            }
+            
+            // Nach allen Versuchen oder bei anderen Fehlern
+            if (isNetworkError) {
+              console.log("Network issue detected while checking admin role, defaulting to non-admin");
+            }
+            setIsAdmin(false);
+            return;
           }
-          
-          setIsAdmin(false);
-          return;
         }
-
-        console.log('AuthContext: Role data:', data);
-        // Vorsichtige Prüfung, ob data und data.role existieren
-        const hasAdminRole = data && typeof data === 'object' && 'role' in data && data.role === 'admin';
-        console.log('AuthContext: Is admin:', hasAdminRole);
-        setIsAdmin(hasAdminRole);
+        
+        // Falls alle Versuche fehlgeschlagen sind
+        console.log("All admin role check attempts failed, defaulting to non-admin");
+        setIsAdmin(false);
       } catch (err) {
         console.error('AuthContext: Exception checking admin role:', err);
         setIsAdmin(false);

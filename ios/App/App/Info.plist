@@ -57,6 +57,10 @@
 				<false/>
 				<key>NSIncludesSubdomains</key>
 				<true/>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.2</string>
+				<key>NSThirdPartyExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
 			</dict>
 			<key>cdn.gpteng.co</key>
 			<dict>
@@ -73,6 +77,19 @@
 				<true/>
 			</dict>
 		</dict>
+	</dict>
+	<!-- Disable HTTP/3 to prevent QUIC connection issues -->
+	<key>CFNetworkDisableHTTP3</key>
+	<true/>
+	<!-- Force HTTP/2 for better stability -->
+	<key>NSURLSessionConfiguration</key>
+	<dict>
+		<key>HTTPMaximumConnectionsPerHost</key>
+		<integer>4</integer>
+		<key>timeoutIntervalForRequest</key>
+		<real>30.0</real>
+		<key>timeoutIntervalForResource</key>
+		<real>60.0</real>
 	</dict>
 </dict>
 </plist>
