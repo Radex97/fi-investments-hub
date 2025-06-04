@@ -66,13 +66,13 @@ const AdminProductManagement = () => {
       if (currentProduct) {
         const { error } = await supabase
           .from("products")
-          .update(product)
-          .eq("id", currentProduct.id);
+          .update(product as any)
+          .eq("id", currentProduct.id as any);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("products")
-          .insert([product]);
+          .insert(product as any);
         if (error) throw error;
       }
     },
@@ -93,7 +93,7 @@ const AdminProductManagement = () => {
       const { error } = await supabase
         .from("products")
         .delete()
-        .eq("id", id);
+        .eq("id", id as any);
       if (error) throw error;
     },
     onSuccess: () => {

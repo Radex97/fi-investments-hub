@@ -55,11 +55,11 @@ export const logActivity = async (activityType: string, description: string) => 
     // Insert the activity log with proper typing
     const { error } = await supabase
       .from('admin_activity_logs')
-      .insert([{
+      .insert({
         user_id: userData.user.id,
         activity_type: activityType,
         description: description
-      }]);
+      } as any);
       
     if (error) {
       console.error('Error logging activity:', error);
@@ -88,7 +88,7 @@ const AdminActivityLog = ({ category, limit = 50 }: AdminActivityLogProps) => {
           .select('*');
           
         if (filter !== 'all') {
-          query = query.eq('activity_type', filter);
+          query = query.eq('activity_type', filter as any);
         }
         
         if (limit) {
@@ -105,7 +105,7 @@ const AdminActivityLog = ({ category, limit = 50 }: AdminActivityLogProps) => {
         if (data && data.length > 0) {
           return data.map((log: any) => {
             // Find the profile for this log with proper type checking
-            const profile = profileData?.find((p) => p && p.id === log.user_id);
+            const profile = Array.isArray(profileData) ? profileData.find((p: any) => p && p.id === log.user_id) : null;
             const userName = profile 
               ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unbekannter Benutzer'
               : 'Unbekannter Benutzer';
