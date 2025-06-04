@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Package, Edit, Trash2, PlusCircle } from "lucide-react";
@@ -63,13 +64,13 @@ const AdminProductManagement = () => {
       if (currentProduct) {
         const { error } = await supabase
           .from("products")
-          .update(product)
+          .update(product as any)
           .eq("id", currentProduct.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("products")
-          .insert(product);
+          .insert(product as any);
         if (error) throw error;
       }
     },
@@ -90,7 +91,7 @@ const AdminProductManagement = () => {
       const { error } = await supabase
         .from("products")
         .delete()
-        .eq("id", id);
+        .eq("id", id as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -114,8 +115,8 @@ const AdminProductManagement = () => {
       return_value: product.return_value,
       risk_level: product.risk_level,
       minimum_investment: product.minimum_investment,
-      image_url: product.image_url,
-      slug: product.slug
+      image_url: product.image_url || "",
+      slug: product.slug || ""
     });
     setIsDialogOpen(true);
   };

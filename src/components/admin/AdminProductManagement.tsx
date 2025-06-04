@@ -19,9 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import type { Product } from "@/hooks/useProducts";
-import { v4 as uuidv4 } from 'uuid';
 import ImageUpload from "./ImageUpload";
-import DocumentUpload from "./DocumentUpload";
 import ProductDocumentManager from "./ProductDocumentManager";
 
 const AdminProductManagement = () => {
@@ -76,13 +74,13 @@ const AdminProductManagement = () => {
       if (currentProduct) {
         const { error } = await supabase
           .from("products")
-          .update(product)
-          .eq("id", currentProduct.id);
+          .update(product as any)
+          .eq("id", currentProduct.id as any);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("products")
-          .insert(product);
+          .insert(product as any);
         if (error) throw error;
       }
     },
@@ -104,7 +102,7 @@ const AdminProductManagement = () => {
       const { error } = await supabase
         .from("products")
         .delete()
-        .eq("id", id);
+        .eq("id", id as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -172,20 +170,6 @@ const AdminProductManagement = () => {
     setFormData(prev => ({
       ...prev,
       image_url: url
-    }));
-  };
-
-  const handleTermsDocumentUploaded = (url: string) => {
-    setFormData(prev => ({
-      ...prev,
-      terms_document_url: url
-    }));
-  };
-
-  const handleInfoDocumentUploaded = (url: string) => {
-    setFormData(prev => ({
-      ...prev,
-      info_document_url: url
     }));
   };
 

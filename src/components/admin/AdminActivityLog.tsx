@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Clock, Filter } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Clock } from "lucide-react";
 import { 
   Table, 
   TableBody, 
@@ -20,7 +20,6 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
 
 interface ActivityLog {
   id: string;
@@ -59,7 +58,7 @@ export const logActivity = async (activityType: string, description: string) => 
         user_id: userData.user.id,
         activity_type: activityType,
         description: description
-      });
+      } as any);
       
     if (error) {
       console.error('Error logging activity:', error);
@@ -88,7 +87,7 @@ const AdminActivityLog = ({ category, limit = 50 }: AdminActivityLogProps) => {
           .select('*');
           
         if (filter !== 'all') {
-          query = query.eq('activity_type', filter);
+          query = query.eq('activity_type', filter as any);
         }
         
         if (limit) {
@@ -102,10 +101,10 @@ const AdminActivityLog = ({ category, limit = 50 }: AdminActivityLogProps) => {
           return [];
         }
         
-        if (data && data.length > 0) {
+        if (data && data.length > 0 && Array.isArray(profileData)) {
           return data.map((log: any) => {
             // Find the profile for this log
-            const profile = profileData?.find((p) => p.id === log.user_id);
+            const profile = profileData.find((p: any) => p.id === log.user_id);
             const userName = profile 
               ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unbekannter Benutzer'
               : 'Unbekannter Benutzer';
