@@ -59,8 +59,12 @@ const AdminOverview = () => {
     if (!investmentsData || investmentsData.length === 0) return 0;
     
     return investmentsData.reduce((sum, investment) => {
-      const amount = parseFloat(String(investment.amount)) || 0;
-      return sum + amount;
+      // Add proper type checking here
+      if (investment && typeof investment === 'object' && 'amount' in investment) {
+        const amount = parseFloat(String(investment.amount)) || 0;
+        return sum + amount;
+      }
+      return sum;
     }, 0);
   }, [investmentsData]);
 
@@ -89,7 +93,7 @@ const AdminOverview = () => {
         
         <DashboardCard 
           title="Anleger"
-          value={usersLoading ? "Lädt..." : usersData.length}
+          value={usersLoading ? "Lädt..." : (usersData?.length || 0)}
           change="+5"
           trend="up"
           icon={<Users className="h-4 w-4 text-blue-500" />}

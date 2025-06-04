@@ -65,12 +65,12 @@ const AdminProductManagement = () => {
         const { error } = await supabase
           .from("products")
           .update(product as any)
-          .eq("id", currentProduct.id);
+          .eq("id", currentProduct.id as any);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("products")
-          .insert(product as any);
+          .insert([product] as any);
         if (error) throw error;
       }
     },
