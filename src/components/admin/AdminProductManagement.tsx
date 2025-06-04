@@ -117,26 +117,39 @@ const AdminProductManagement = () => {
     }
   });
 
-  const handleEditProduct = (product: Product) => {
-    setCurrentProduct(product);
+  const handleEditProduct = (product: any) => {
+    // Check if product is valid and has required properties
+    if (!product || typeof product !== 'object' || !('id' in product)) {
+      console.error('Invalid product data:', product);
+      return;
+    }
+
+    const validProduct = product as Product;
+    setCurrentProduct(validProduct);
     setFormData({
-      id: product.id,
-      title: product.title,
-      description: product.description,
-      return_value: product.return_value,
-      risk_level: product.risk_level,
-      minimum_investment: product.minimum_investment,
-      image_url: product.image_url || "",
-      slug: product.slug || "",
-      terms_document_url: product.terms_document_url || "",
-      info_document_url: product.info_document_url || ""
+      id: validProduct.id,
+      title: validProduct.title,
+      description: validProduct.description,
+      return_value: validProduct.return_value,
+      risk_level: validProduct.risk_level,
+      minimum_investment: validProduct.minimum_investment,
+      image_url: validProduct.image_url || "",
+      slug: validProduct.slug || "",
+      terms_document_url: validProduct.terms_document_url || "",
+      info_document_url: validProduct.info_document_url || ""
     });
     setSelectedTab("general");
     setIsDialogOpen(true);
   };
 
-  const handleDeleteProduct = (product: Product) => {
-    setProductToDelete(product);
+  const handleDeleteProduct = (product: any) => {
+    // Check if product is valid and has required properties
+    if (!product || typeof product !== 'object' || !('id' in product)) {
+      console.error('Invalid product data:', product);
+      return;
+    }
+
+    setProductToDelete(product as Product);
     setIsDeleteDialogOpen(true);
   };
 
@@ -238,62 +251,69 @@ const AdminProductManagement = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products?.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell className="font-medium">{product.id.substring(0, 8)}...</TableCell>
-                <TableCell>{product.title}</TableCell>
-                <TableCell className="hidden md:table-cell max-w-xs truncate">
-                  {product.description}
-                </TableCell>
-                <TableCell>{product.return_value}</TableCell>
-                <TableCell className="hidden md:table-cell">{product.risk_level}</TableCell>
-                <TableCell>€ {product.minimum_investment.toLocaleString('de-DE')}</TableCell>
-                <TableCell>
-                  <div className="flex space-x-1">
-                    {product.terms_document_url && (
-                      <a
-                        href={product.terms_document_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:text-blue-700"
-                        title="Anleihebedingungen"
+            {products?.map((product: any) => {
+              // Ensure product has required properties before rendering
+              if (!product || typeof product !== 'object' || !('id' in product)) {
+                return null;
+              }
+
+              return (
+                <TableRow key={product.id}>
+                  <TableCell className="font-medium">{product.id.substring(0, 8)}...</TableCell>
+                  <TableCell>{product.title}</TableCell>
+                  <TableCell className="hidden md:table-cell max-w-xs truncate">
+                    {product.description}
+                  </TableCell>
+                  <TableCell>{product.return_value}</TableCell>
+                  <TableCell className="hidden md:table-cell">{product.risk_level}</TableCell>
+                  <TableCell>€ {product.minimum_investment.toLocaleString('de-DE')}</TableCell>
+                  <TableCell>
+                    <div className="flex space-x-1">
+                      {product.terms_document_url && (
+                        <a
+                          href={product.terms_document_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:text-blue-700"
+                          title="Anleihebedingungen"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </a>
+                      )}
+                      {product.info_document_url && (
+                        <a
+                          href={product.info_document_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-500 hover:text-green-700"
+                          title="Basisinformationsblatt"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleEditProduct(product)}
                       >
-                        <FileText className="h-4 w-4" />
-                      </a>
-                    )}
-                    {product.info_document_url && (
-                      <a
-                        href={product.info_document_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-green-500 hover:text-green-700"
-                        title="Basisinformationsblatt"
+                        <Edit className="h-4 w-4 text-[#B1904B]" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleDeleteProduct(product)}
                       >
-                        <FileText className="h-4 w-4" />
-                      </a>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => handleEditProduct(product)}
-                    >
-                      <Edit className="h-4 w-4 text-[#B1904B]" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => handleDeleteProduct(product)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

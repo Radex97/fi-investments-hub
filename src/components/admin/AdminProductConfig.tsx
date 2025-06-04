@@ -76,7 +76,13 @@ const AdminProductConfig = () => {
     onSuccess: () => {
       toast.success("Produktkonfiguration aktualisiert");
       queryClient.invalidateQueries({ queryKey: ["product-details", selectedProduct] });
-      logActivity("product_config_update", `Updated configuration for product ${(productDetails as any)?.title || selectedProduct}`);
+      
+      // Check if productDetails exists and has the title property before logging
+      const productTitle = productDetails && typeof productDetails === 'object' && 'title' in productDetails 
+        ? (productDetails as any).title 
+        : selectedProduct;
+      
+      logActivity("product_config_update", `Updated configuration for product ${productTitle}`);
     },
     onError: (error) => {
       toast.error("Fehler beim Aktualisieren", {
@@ -161,11 +167,18 @@ const AdminProductConfig = () => {
                 <SelectValue placeholder="Wählen Sie ein Produkt aus..." />
               </SelectTrigger>
               <SelectContent>
-                {products?.map((product: any) => (
-                  <SelectItem key={(product as any).id} value={(product as any).id}>
-                    {(product as any).title}
-                  </SelectItem>
-                ))}
+                {products?.map((product: any) => {
+                  // Check if product has required properties
+                  if (!product || typeof product !== 'object' || !('id' in product) || !('title' in product)) {
+                    return null;
+                  }
+                  
+                  return (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.title}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Package, Edit, Trash2, PlusCircle } from "lucide-react";
+import { Package, Edit, Trash2, PlusCircle, Upload, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { 
   Table, 
