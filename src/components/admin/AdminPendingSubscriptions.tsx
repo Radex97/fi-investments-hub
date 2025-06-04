@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -103,7 +102,7 @@ const AdminPendingSubscriptions = () => {
       const { data: photos, error } = await supabase
         .from('legitimation_photos')
         .select('*')
-        .eq('user_id', subscription.user_id as any);
+        .eq('user_id', subscription.user_id);
       
       if (error) {
         console.error('Error fetching legitimation photos:', error);
@@ -112,7 +111,7 @@ const AdminPendingSubscriptions = () => {
       }
       
       if (photos) {
-        setLegitimationPhotos(photos as any);
+        setLegitimationPhotos(photos);
       } else {
         setLegitimationPhotos([]);
         console.log('No legitimation photos found for user:', subscription.user_id);
@@ -136,16 +135,16 @@ const AdminPendingSubscriptions = () => {
       // Update investment status
       const { error: updateError } = await supabase
         .from('investments')
-        .update({ status: 'confirmed' } as any)
-        .eq('id', id as any);
+        .update({ status: 'confirmed' })
+        .eq('id', id);
         
       if (updateError) throw updateError;
       
       // Update user's KYC status to 'verified' when their subscription is confirmed
       const { error: profileUpdateError } = await supabase
         .from('profiles')
-        .update({ kyc_status: 'verified' } as any)
-        .eq('id', subscription.user_id as any);
+        .update({ kyc_status: 'verified' })
+        .eq('id', subscription.user_id);
         
       if (profileUpdateError) {
         console.error('Failed to update KYC status:', profileUpdateError);
@@ -157,7 +156,7 @@ const AdminPendingSubscriptions = () => {
         user_id: (await supabase.auth.getUser()).data.user?.id,
         description: `Confirmed subscription with ID ${id} and updated user KYC status`,
         activity_type: 'subscription_confirmation'
-      } as any);
+      });
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['pendingSubscriptions'] });
@@ -183,8 +182,8 @@ const AdminPendingSubscriptions = () => {
         .update({ 
           payment_received: true,
           status: 'active' // Update status to active when payment is received
-        } as any)
-        .eq('id', id as any);
+        })
+        .eq('id', id);
         
       if (updateError) throw updateError;
       
@@ -193,7 +192,7 @@ const AdminPendingSubscriptions = () => {
         user_id: (await supabase.auth.getUser()).data.user?.id,
         description: `Marked payment received and activated subscription with ID ${id}`,
         activity_type: 'payment_received_activation'
-      } as any);
+      });
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['pendingSubscriptions'] });
