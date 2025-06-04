@@ -15,16 +15,44 @@ const supabaseOptions = {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: !Capacitor.isNativePlatform(), // Nur im Web aktivieren
-    flowType: 'pkce', // Sichere PKCE Flow für mobile Geräte verwenden
+    flowType: 'pkce' as const, // Sichere PKCE Flow für mobile Geräte verwenden
   },
   global: {
     headers: {
       'X-Client-Info': `fi-investments-app/${Capacitor.getPlatform()}`,
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
     },
+    // Bessere Netzwerk-Einstellungen für mobile Geräte
+    fetch: (url: string, options: any = {}) => {
+      const timeoutId = setTimeout(() => {
+        console.warn('Network request timeout for:', url);
+      }, 30000); // 30 Sekunden Timeout-Warnung
+
+      return fetch(url, {
+        ...options,
+        // Zusätzliche Headers für bessere Kompatibilität
+        headers: {
+          ...options.headers,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        // Netzwerk-Timeout
+        signal: AbortSignal.timeout(60000), // 60 Sekunden Timeout
+      }).finally(() => {
+        clearTimeout(timeoutId);
+      });
+    },
+  },
+  realtime: {
+    // Bessere Realtime-Konfiguration für mobile Verbindungen
+    heartbeatIntervalMs: 30000,
+    reconnectAfterMs: (tries: number) => Math.min(tries * 1000, 10000),
   },
 };
 
 console.log('Initializing Supabase client with platform:', Capacitor.getPlatform());
+console.log('Supabase URL:', SUPABASE_URL);
 
 export const supabase = createClient<Database>(
   SUPABASE_URL, 

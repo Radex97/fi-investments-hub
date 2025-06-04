@@ -154,61 +154,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
-    try {
-      // Wenn bereits ein Login-Versuch läuft, abbrechen
-      if (loginAttemptInProgressRef.current) {
-        console.log('Login attempt already in progress, skipping duplicate call');
-        return;
-      }
-      
-      console.log('Attempting to sign in with email/password...');
-      // Set flag to navigate after sign-in
-      shouldNavigateRef.current = true;
-      loginAttemptInProgressRef.current = true;
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    const attemptSignIn = async (): Promise<void> => {
+      try {
+        // Wenn bereits ein Login-Versuch läuft, abbrechen
+        if (loginAttemptInProgressRef.current) {
+          console.log('Login attempt already in progress, skipping duplicate call');
+          return;
+        }
+        
+        console.log(`Attempting to sign in with email/password... (Attempt ${retryCount + 1}/${maxRetries + 1})`);
+        // Set flag to navigate after sign-in
+        shouldNavigateRef.current = true;
+        loginAttemptInProgressRef.current = true;
+        
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) {
-        console.error('Sign in error:', error);
+        if (error) {
+          console.error('Sign in error:', error);
+          loginAttemptInProgressRef.current = false;
+          throw error;
+        }
+
+        console.log('Sign in successful:', data.user?.id);
+        // Erfolgsmeldung nur anzeigen, wenn kein Fehler auftrat
+        toast({
+          title: "Erfolgreich angemeldet",
+          description: "Sie werden zum Dashboard weitergeleitet...",
+        });
+        
+        // Explizite Navigation, falls der Event-Listener nicht triggert
+        setTimeout(() => {
+          if (shouldNavigateRef.current) {
+            shouldNavigateRef.current = false;
+            navigate('/dashboard');
+          }
+        }, 500);
+      } catch (error: any) {
+        console.error('Sign in exception:', error);
         loginAttemptInProgressRef.current = false;
+        
+        // Behandlung von Netzwerkfehlern mit Retry-Logik
+        if (error.__isAuthError && error.name === "AuthRetryableFetchError") {
+          console.log(`Netzwerkfehler bei der Authentifizierung (Versuch ${retryCount + 1}/${maxRetries + 1})`);
+          
+          if (retryCount < maxRetries) {
+            retryCount++;
+            // Exponential backoff: 1s, 2s, 4s
+            const delayMs = Math.pow(2, retryCount - 1) * 1000;
+            console.log(`Wiederhole in ${delayMs}ms...`);
+            
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            return attemptSignIn();
+          } else {
+            // Nach allen Versuchen immer noch Netzwerkfehler
+            toast({
+              title: "Verbindungsfehler",
+              description: "Keine Verbindung zum Server. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
+              variant: "destructive",
+            });
+            throw error;
+          }
+        }
+        
+        // Andere Fehler direkt anzeigen
+        toast({
+          title: "Anmeldung fehlgeschlagen",
+          description: error.message || "Ein unbekannter Fehler ist aufgetreten.",
+          variant: "destructive",
+        });
         throw error;
       }
-
-      console.log('Sign in successful:', data.user?.id);
-      // Erfolgsmeldung nur anzeigen, wenn kein Fehler auftrat
-      toast({
-        title: "Erfolgreich angemeldet",
-        description: "Sie werden zum Dashboard weitergeleitet...",
-      });
-      
-      // Explizite Navigation, falls der Event-Listener nicht triggert
-      setTimeout(() => {
-        if (shouldNavigateRef.current) {
-          shouldNavigateRef.current = false;
-          navigate('/dashboard');
-        }
-      }, 500);
-    } catch (error: any) {
-      console.error('Sign in exception:', error);
-      loginAttemptInProgressRef.current = false;
-      
-      // Vermeiden wiederholter Fehlermeldungen für RetryableFetchError
-      if (error.__isAuthError && error.name === "AuthRetryableFetchError") {
-        // Netzwerkfehler - keine Toast-Meldung, nur Logging
-        console.log("Netzwerkfehler bei der Authentifizierung - wird automatisch wiederholt");
-        return;
-      }
-      
-      toast({
-        title: "Anmeldung fehlgeschlagen",
-        description: error.message || "Ein unbekannter Fehler ist aufgetreten.",
-        variant: "destructive",
-      });
-      throw error;
-    }
+    };
+    
+    return attemptSignIn();
   };
 
   const signInWithGoogle = async () => {
