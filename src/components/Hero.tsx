@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from "react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useNavigate } from "react-router-dom";
@@ -63,7 +64,7 @@ const Hero = () => {
           <div className="md:w-1/2">
             <div className="fi-fade-up fi-delay-1">
               <h1 className="text-3xl md:text-4xl lg:text-5xl text-neutral-900 font-bold mb-4 leading-tight">
-                Ihre finanzielle Zukunft beginnt hier
+                Gestalten Sie Ihre finanzielle Unabhängigkeit
               </h1>
             </div>
             
