@@ -20,28 +20,6 @@ const supabaseOptions = {
   global: {
     headers: {
       'X-Client-Info': `fi-investments-app/${Capacitor.getPlatform()}`,
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache',
-    },
-    // Bessere Netzwerk-Einstellungen für mobile Geräte
-    fetch: (url: string, options: any = {}) => {
-      const timeoutId = setTimeout(() => {
-        console.warn('Network request timeout for:', url);
-      }, 30000); // 30 Sekunden Timeout-Warnung
-
-      return fetch(url, {
-        ...options,
-        // Zusätzliche Headers für bessere Kompatibilität
-        headers: {
-          ...options.headers,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        // Netzwerk-Timeout
-        signal: AbortSignal.timeout(60000), // 60 Sekunden Timeout
-      }).finally(() => {
-        clearTimeout(timeoutId);
-      });
     },
   },
   realtime: {
