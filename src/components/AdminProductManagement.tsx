@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Package, Edit, Trash2, PlusCircle } from "lucide-react";
@@ -18,6 +19,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import type { Product } from "@/hooks/useProducts";
 import ImageUpload from "./admin/ImageUpload";
+
+interface ProductFormData {
+  title: string;
+  description: string;
+  risk_level: string;
+  return_value: string;
+  minimum_investment: number;
+  image_url?: string | null;
+  slug?: string | null;
+}
 
 const AdminProductManagement = () => {
   const queryClient = useQueryClient();
@@ -46,20 +57,12 @@ const AdminProductManagement = () => {
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      return data;
+      return data || [];
     }
   });
 
   const mutation = useMutation({
-    mutationFn: async (product: { 
-      title: string; 
-      description: string; 
-      risk_level: string; 
-      return_value: string; 
-      minimum_investment: number;
-      image_url?: string;
-      slug?: string;
-    }) => {
+    mutationFn: async (product: ProductFormData) => {
       if (currentProduct) {
         const { error } = await supabase
           .from("products")
@@ -69,7 +72,7 @@ const AdminProductManagement = () => {
       } else {
         const { error } = await supabase
           .from("products")
-          .insert(product);
+          .insert([product]);
         if (error) throw error;
       }
     },
@@ -114,8 +117,8 @@ const AdminProductManagement = () => {
       return_value: product.return_value,
       risk_level: product.risk_level,
       minimum_investment: product.minimum_investment,
-      image_url: product.image_url,
-      slug: product.slug
+      image_url: product.image_url || "",
+      slug: product.slug || ""
     });
     setIsDialogOpen(true);
   };
@@ -156,14 +159,14 @@ const AdminProductManagement = () => {
   };
 
   const handleSubmit = () => {
-    const productData = {
+    const productData: ProductFormData = {
       title: formData.title,
       description: formData.description,
       return_value: formData.return_value,
       risk_level: formData.risk_level,
       minimum_investment: formData.minimum_investment,
-      image_url: formData.image_url,
-      slug: formData.slug
+      image_url: formData.image_url || null,
+      slug: formData.slug || null
     };
     
     mutation.mutate(productData);

@@ -52,14 +52,14 @@ export const logActivity = async (activityType: string, description: string) => 
       console.error('Error with check_and_create_activity_logs_table RPC:', rpcError);
     }
     
-    // Insert the activity log
+    // Insert the activity log with proper typing
     const { error } = await supabase
       .from('admin_activity_logs')
-      .insert({
+      .insert([{
         user_id: userData.user.id,
         activity_type: activityType,
         description: description
-      });
+      }]);
       
     if (error) {
       console.error('Error logging activity:', error);
@@ -104,8 +104,8 @@ const AdminActivityLog = ({ category, limit = 50 }: AdminActivityLogProps) => {
         
         if (data && data.length > 0) {
           return data.map((log: any) => {
-            // Find the profile for this log
-            const profile = profileData?.find((p) => p.id === log.user_id);
+            // Find the profile for this log with proper type checking
+            const profile = profileData?.find((p) => p && p.id === log.user_id);
             const userName = profile 
               ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unbekannter Benutzer'
               : 'Unbekannter Benutzer';
