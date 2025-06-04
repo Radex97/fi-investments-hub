@@ -1,44 +1,41 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-export interface Investment {
+interface Investment {
   id: string;
-  product_title: string;
-  shares: number;
   amount: number;
-  performance_percentage: number;
+  shares: number;
   created_at: string;
-  status: string;
-  document_url?: string | null;
-  payment_received?: boolean;
+  product_title: string;
+  product_id: string;
   fixed_interest_rate: number;
   profit_share_rate: number;
-  product_id: string;
-  user_id: string; // Added to match PendingSubscription type
-  userName?: string; // Added to match PendingSubscription type
-  product_interest_rate?: number; // Added to match AdminPendingSubscriptions usage
-  product_last_interest_date?: string; // Added to match AdminPendingSubscriptions usage
+  userName?: string;
+  status?: string;
+  signature_provided?: boolean;
+  payment_received?: boolean;
+  updated_at?: string;
+  signature_date?: string;
+  document_url?: string;
 }
 
 export function useInvestments(options?: { forAdmin?: boolean }) {
+  const { user } = useAuth();
+
   return useQuery({
-    queryKey: ["investments", options?.forAdmin ? "admin" : "user"],
+    queryKey: ["investments", user?.id, options?.forAdmin],
     queryFn: async () => {
       // If fetching for admin, get all pending investments
-      // Otherwise, only fetch the current user's investments
-      const query = supabase
-        .from("investments")
-        .select("*");
-      
-      if (options?.forAdmin) {
-        // For admin, get all pending subscriptions across all users
-        query.eq("status", "pending");
-      } else {
-        // For regular users, filter by their user ID and include active investments
-        query.in("status", ['pending', 'active', 'confirmed'])
-          .order("created_at", { ascending: false });
-      }
+      const query = options?.forAdmin
+        ? supabase
+            .from("investments")
+            .select("*")
+            .or("signature_provided.is.null,payment_received.is.null")
+        : supabase
+            .from("investments")
+            .select("*")
+            .eq("user_id", user?.id);
 
       const { data, error } = await query;
 
@@ -46,26 +43,9 @@ export function useInvestments(options?: { forAdmin?: boolean }) {
         throw error;
       }
 
-      // After fetching investments, update the local cache of KYC status
-      if (!options?.forAdmin) {
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData && userData.user) {
-          // Query for current profile data to get updated KYC status
-          await supabase
-            .from("profiles")
-            .select("kyc_status")
-            .eq("id", userData.user.id)
-            .single();
-        }
-      }
-
-      // Get products to fetch interest rate and profit share details
-      const { data: products } = await supabase
-        .from("products")
-        .select("*");
-
-      // For admin view, get user profiles to display user names
-      let userProfiles = {};
+      // Get additional user information for admin view
+      let userProfiles: Record<string, string> = {};
+      
       if (options?.forAdmin && data && data.length > 0) {
         // Extract unique user IDs
         const userIds = [...new Set(data.map(item => item.user_id))];
@@ -85,34 +65,93 @@ export function useInvestments(options?: { forAdmin?: boolean }) {
         }
       }
 
-      // Get latest ETF performance data
-      const { data: etfData } = await supabase
-        .rpc('get_latest_etf_performance');
-
-      // Enhance investment data with interest details from products table
-      const enhancedData = data?.map(investment => {
-        const product = products?.find(p => p.id === investment.product_id);
+      // Get latest ETF performance data with robust fallback strategy
+      let currentETFPerformance = 14.21; // Default fallback value
+      
+      try {
+        console.log('Fetching latest ETF performance...');
         
-        // Base enhanced investment with properties needed by AdminPendingSubscriptions
-        const enhancedInvestment = {
-          ...investment,
-          fixed_interest_rate: product?.fixed_interest_rate !== null ? parseFloat(product?.fixed_interest_rate.toString()) : 0,
-          profit_share_rate: product?.calculated_profit_share !== null ? parseFloat(product?.calculated_profit_share.toString()) : 0,
-          // Add these for compatibility with existing code
-          product_interest_rate: product?.interest_rate !== null ? parseFloat(product?.interest_rate.toString()) : 0.05,
-          product_last_interest_date: product?.last_interest_date || investment.created_at,
-          // Add userName if we're in admin mode
-          userName: options?.forAdmin ? userProfiles[investment.user_id] : undefined,
-          // Sum both for total performance
-          performance_percentage: 
-            (product?.fixed_interest_rate !== null ? parseFloat(product?.fixed_interest_rate.toString()) : 0) + 
-            (product?.calculated_profit_share !== null ? parseFloat(product?.calculated_profit_share.toString()) : 0)
-        };
-        
-        return enhancedInvestment;
-      });
+        // First try: RPC function
+        try {
+          const { data: etfRpcData, error: etfRpcError } = await supabase
+            .rpc('get_latest_etf_performance');
+          
+          if (!etfRpcError && etfRpcData && Array.isArray(etfRpcData) && etfRpcData.length > 0) {
+            currentETFPerformance = parseFloat(etfRpcData[0].average_performance.toString()) || currentETFPerformance;
+            console.log('ETF performance from RPC:', currentETFPerformance);
+          } else {
+            throw new Error('RPC function failed or returned no data');
+          }
+        } catch (rpcError) {
+          console.log('RPC function failed, trying direct table query...');
+          
+          // Second try: Direct table query
+          const { data: etfDirectData, error: etfDirectError } = await supabase
+            .from('etf_performance')
+            .select('average_performance')
+            .order('date', { ascending: false })
+            .limit(1);
+          
+          if (!etfDirectError && etfDirectData && etfDirectData.length > 0) {
+            currentETFPerformance = parseFloat(etfDirectData[0].average_performance.toString()) || currentETFPerformance;
+            console.log('ETF performance from direct query:', currentETFPerformance);
+          } else {
+            console.log('Direct table query also failed, using default value:', currentETFPerformance);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching ETF performance, using default:', error);
+      }
 
-      return enhancedData as Investment[];
+      // Calculate interest rates for each investment
+      const investmentsWithRates = await Promise.all(
+        (data || []).map(async (investment: any) => {
+          try {
+            // Get the related product to determine fixed and profit share rates
+            const { data: productData } = await supabase
+              .from('products')
+              .select('fixed_interest_rate, profit_share_percentage, calculated_profit_share')
+              .eq('id', investment.product_id)
+              .single();
+
+            const fixedRate = productData?.fixed_interest_rate || 0;
+            const profitSharePercentage = productData?.profit_share_percentage || 0;
+            
+            // Calculate profit share rate: (ETF performance * profit share percentage / 100)
+            const profitShareRate = (currentETFPerformance * profitSharePercentage) / 100;
+
+            return {
+              ...investment,
+              fixed_interest_rate: fixedRate,
+              profit_share_rate: profitShareRate,
+              userName: options?.forAdmin ? userProfiles[investment.user_id] : undefined,
+            };
+          } catch (error) {
+            console.error('Error calculating rates for investment:', investment.id, error);
+            return {
+              ...investment,
+              fixed_interest_rate: 0,
+              profit_share_rate: 0,
+              userName: options?.forAdmin ? userProfiles[investment.user_id] : undefined,
+            };
+          }
+        })
+      );
+
+      return investmentsWithRates as Investment[];
     },
+    enabled: !!user || !!options?.forAdmin,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: (failureCount, error) => {
+      // Only retry on network errors, not on authentication errors
+      const isNetworkError = 
+        error.message?.includes('network') ||
+        error.message?.includes('connection') ||
+        error.message?.includes('Load failed') ||
+        (error as any).code === 'NSURLErrorDomain';
+      
+      return isNetworkError && failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 }
