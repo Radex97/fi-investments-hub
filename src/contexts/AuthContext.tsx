@@ -66,57 +66,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Kurze Verzögerung für die Netzwerkstabilisierung
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Retry-Logik für robuste Netzwerk-Calls
-        let attempts = 0;
-        const maxAttempts = 3;
-        
-        while (attempts < maxAttempts) {
-          try {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', user.id)
-              .single();
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
 
-            if (error) {
-              throw error;
-            }
-
-            console.log('AuthContext: Role data:', data);
-            // Vorsichtige Prüfung, ob data und data.role existieren
-            const hasAdminRole = data && typeof data === 'object' && 'role' in data && data.role === 'admin';
-            console.log('AuthContext: Is admin:', hasAdminRole);
-            setIsAdmin(hasAdminRole);
-            return; // Erfolgreicher Aufruf, beende die Funktion
-          } catch (error: any) {
-            attempts++;
-            console.error(`AuthContext: Admin role check attempt ${attempts} failed:`, error);
-            
-            // Prüfe auf Netzwerkfehler
-            const isNetworkError = 
-              error.message === "TypeError: Load failed" ||
-              error.message?.includes('network') ||
-              error.message?.includes('connection') ||
-              error.code === 'NSURLErrorDomain';
-            
-            if (isNetworkError && attempts < maxAttempts) {
-              console.log(`Network issue detected while checking admin role, retrying in ${attempts * 1000}ms...`);
-              await new Promise(resolve => setTimeout(resolve, attempts * 1000));
-              continue;
-            }
-            
-            // Nach allen Versuchen oder bei anderen Fehlern
-            if (isNetworkError) {
-              console.log("Network issue detected while checking admin role, defaulting to non-admin");
-            }
-            setIsAdmin(false);
-            return;
+        if (error) {
+          console.error('AuthContext: Error checking admin role:', error);
+          
+          // Wenn der Fehler "Load failed" ist, behandeln wir ihn besonders
+          if (error.message === "TypeError: Load failed") {
+            console.log("Network issue detected while checking admin role, defaulting to non-admin");
           }
+          
+          setIsAdmin(false);
+          return;
         }
-        
-        // Falls alle Versuche fehlgeschlagen sind
-        console.log("All admin role check attempts failed, defaulting to non-admin");
-        setIsAdmin(false);
+
+        console.log('AuthContext: Role data:', data);
+        // Vorsichtige Prüfung, ob data und data.role existieren
+        const hasAdminRole = data && typeof data === 'object' && 'role' in data && data.role === 'admin';
+        console.log('AuthContext: Is admin:', hasAdminRole);
+        setIsAdmin(hasAdminRole);
       } catch (err) {
         console.error('AuthContext: Exception checking admin role:', err);
         setIsAdmin(false);
@@ -182,85 +154,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    const attemptSignIn = async (): Promise<void> => {
-      try {
-        // Wenn bereits ein Login-Versuch läuft, abbrechen
-        if (loginAttemptInProgressRef.current) {
-          console.log('Login attempt already in progress, skipping duplicate call');
-          return;
-        }
-        
-        console.log(`Attempting to sign in with email/password... (Attempt ${retryCount + 1}/${maxRetries + 1})`);
-        // Set flag to navigate after sign-in
-        shouldNavigateRef.current = true;
-        loginAttemptInProgressRef.current = true;
-        
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+    try {
+      // Wenn bereits ein Login-Versuch läuft, abbrechen
+      if (loginAttemptInProgressRef.current) {
+        console.log('Login attempt already in progress, skipping duplicate call');
+        return;
+      }
+      
+      console.log('Attempting to sign in with email/password...');
+      // Set flag to navigate after sign-in
+      shouldNavigateRef.current = true;
+      loginAttemptInProgressRef.current = true;
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) {
-          console.error('Sign in error:', error);
-          loginAttemptInProgressRef.current = false;
-          throw error;
-        }
-
-        console.log('Sign in successful:', data.user?.id);
-        // Erfolgsmeldung nur anzeigen, wenn kein Fehler auftrat
-        toast({
-          title: "Erfolgreich angemeldet",
-          description: "Sie werden zum Dashboard weitergeleitet...",
-        });
-        
-        // Explizite Navigation, falls der Event-Listener nicht triggert
-        setTimeout(() => {
-          if (shouldNavigateRef.current) {
-            shouldNavigateRef.current = false;
-            navigate('/dashboard');
-          }
-        }, 500);
-      } catch (error: any) {
-        console.error('Sign in exception:', error);
+      if (error) {
+        console.error('Sign in error:', error);
         loginAttemptInProgressRef.current = false;
-        
-        // Behandlung von Netzwerkfehlern mit Retry-Logik
-        if (error.__isAuthError && error.name === "AuthRetryableFetchError") {
-          console.log(`Netzwerkfehler bei der Authentifizierung (Versuch ${retryCount + 1}/${maxRetries + 1})`);
-          
-          if (retryCount < maxRetries) {
-            retryCount++;
-            // Exponential backoff: 1s, 2s, 4s
-            const delayMs = Math.pow(2, retryCount - 1) * 1000;
-            console.log(`Wiederhole in ${delayMs}ms...`);
-            
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-            return attemptSignIn();
-          } else {
-            // Nach allen Versuchen immer noch Netzwerkfehler
-            toast({
-              title: "Verbindungsfehler",
-              description: "Keine Verbindung zum Server. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
-              variant: "destructive",
-            });
-            throw error;
-          }
-        }
-        
-        // Andere Fehler direkt anzeigen
-        toast({
-          title: "Anmeldung fehlgeschlagen",
-          description: error.message || "Ein unbekannter Fehler ist aufgetreten.",
-          variant: "destructive",
-        });
         throw error;
       }
-    };
-    
-    return attemptSignIn();
+
+      console.log('Sign in successful:', data.user?.id);
+      // Erfolgsmeldung nur anzeigen, wenn kein Fehler auftrat
+      toast({
+        title: "Erfolgreich angemeldet",
+        description: "Sie werden zum Dashboard weitergeleitet...",
+      });
+      
+      // Explizite Navigation, falls der Event-Listener nicht triggert
+      setTimeout(() => {
+        if (shouldNavigateRef.current) {
+          shouldNavigateRef.current = false;
+          navigate('/dashboard');
+        }
+      }, 500);
+    } catch (error: any) {
+      console.error('Sign in exception:', error);
+      loginAttemptInProgressRef.current = false;
+      
+      // Vermeiden wiederholter Fehlermeldungen für RetryableFetchError
+      if (error.__isAuthError && error.name === "AuthRetryableFetchError") {
+        // Netzwerkfehler - keine Toast-Meldung, nur Logging
+        console.log("Netzwerkfehler bei der Authentifizierung - wird automatisch wiederholt");
+        return;
+      }
+      
+      toast({
+        title: "Anmeldung fehlgeschlagen",
+        description: error.message || "Ein unbekannter Fehler ist aufgetreten.",
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
 
   const signInWithGoogle = async () => {

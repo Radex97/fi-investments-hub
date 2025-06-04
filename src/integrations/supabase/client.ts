@@ -9,92 +9,22 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-// Robuste fetch-Funktion mit Retry-Logik für mobile Netzwerkprobleme
-const createRobustFetch = () => {
-  return async (url: string, options: any = {}) => {
-    const maxRetries = 3;
-    let lastError: Error | null = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`Fetch attempt ${attempt}/${maxRetries} for: ${url}`);
-        
-        // Erstelle AbortController für Timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-        }, 30000); // 30 Sekunden Timeout
-
-        const response = await fetch(url, {
-          ...options,
-          signal: controller.signal,
-          // Explizit HTTP/2 verwenden
-          cache: 'no-cache',
-          headers: {
-            ...options.headers,
-            'Connection': 'keep-alive',
-          },
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok && attempt < maxRetries) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        return response;
-      } catch (error: any) {
-        lastError = error;
-        console.error(`Fetch attempt ${attempt} failed:`, error.message);
-
-        // Bei Netzwerkfehlern oder Timeouts wiederholen
-        if (attempt < maxRetries && (
-          error.name === 'AbortError' ||
-          error.message.includes('network') ||
-          error.message.includes('connection') ||
-          error.message.includes('Load failed') ||
-          error.code === 'NSURLErrorDomain'
-        )) {
-          const delay = Math.pow(2, attempt - 1) * 1000; // Exponential backoff
-          console.log(`Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-
-        throw error;
-      }
-    }
-
-    throw lastError || new Error('All fetch attempts failed');
-  };
-};
-
 // Erweiterte Optionen für mobile Geräte
 const supabaseOptions = {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: !Capacitor.isNativePlatform(), // Nur im Web aktivieren
-    flowType: 'pkce' as const, // Sichere PKCE Flow für mobile Geräte verwenden
+    flowType: 'pkce', // Sichere PKCE Flow für mobile Geräte verwenden
   },
   global: {
     headers: {
       'X-Client-Info': `fi-investments-app/${Capacitor.getPlatform()}`,
     },
-    // Nur auf nativen Plattformen die robuste fetch-Funktion verwenden
-    ...(Capacitor.isNativePlatform() && {
-      fetch: createRobustFetch(),
-    }),
-  },
-  realtime: {
-    // Bessere Realtime-Konfiguration für mobile Verbindungen
-    heartbeatIntervalMs: 30000,
-    reconnectAfterMs: (tries: number) => Math.min(tries * 1000, 10000),
   },
 };
 
 console.log('Initializing Supabase client with platform:', Capacitor.getPlatform());
-console.log('Supabase URL:', SUPABASE_URL);
 
 export const supabase = createClient<Database>(
   SUPABASE_URL, 
