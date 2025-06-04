@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Settings, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -51,7 +51,7 @@ const AdminProductConfig = () => {
       const { data, error } = await supabase
         .from("products")
         .select("*")
-        .eq("id", selectedProduct)
+        .eq("id", selectedProduct as any)
         .single();
 
       if (error) throw error;
@@ -76,7 +76,7 @@ const AdminProductConfig = () => {
     onSuccess: () => {
       toast.success("Produktkonfiguration aktualisiert");
       queryClient.invalidateQueries({ queryKey: ["product-details", selectedProduct] });
-      logActivity("product_config_update", `Updated configuration for product ${productDetails?.title || selectedProduct}`);
+      logActivity("product_config_update", `Updated configuration for product ${(productDetails as any)?.title || selectedProduct}`);
     },
     onError: (error) => {
       toast.error("Fehler beim Aktualisieren", {
@@ -87,10 +87,10 @@ const AdminProductConfig = () => {
 
   // Update form values when product changes
   React.useEffect(() => {
-    if (productDetails) {
-      setInterestRate(productDetails.interest_rate?.toString() || "");
-      setFixedRate(productDetails.fixed_interest_rate?.toString() || "");
-      setProfitShare(productDetails.profit_share_percentage?.toString() || "");
+    if (productDetails && typeof productDetails === 'object' && 'interest_rate' in productDetails) {
+      setInterestRate((productDetails as any).interest_rate?.toString() || "");
+      setFixedRate((productDetails as any).fixed_interest_rate?.toString() || "");
+      setProfitShare((productDetails as any).profit_share_percentage?.toString() || "");
     }
   }, [productDetails]);
 
@@ -161,9 +161,9 @@ const AdminProductConfig = () => {
                 <SelectValue placeholder="Wählen Sie ein Produkt aus..." />
               </SelectTrigger>
               <SelectContent>
-                {products?.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.title}
+                {products?.map((product: any) => (
+                  <SelectItem key={(product as any).id} value={(product as any).id}>
+                    {(product as any).title}
                   </SelectItem>
                 ))}
               </SelectContent>

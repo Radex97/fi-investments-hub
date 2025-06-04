@@ -25,14 +25,13 @@ interface Investment {
   created_at: string;
   signature_provided: boolean;
   document_url?: string;
-}
-
-interface Profile {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  kyc_status: string;
+  profiles?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    kyc_status: string;
+  };
 }
 
 interface LegitimationPhoto {
@@ -65,7 +64,7 @@ const AdminPendingSubscriptions = () => {
             kyc_status
           )
         `)
-        .eq("status", "pending")
+        .eq("status", "pending" as any)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -214,16 +213,16 @@ const AdminPendingSubscriptions = () => {
             {pendingInvestments?.map((investment: any) => (
               <TableRow key={investment.id}>
                 <TableCell>
-                  {investment.profiles?.first_name} {investment.profiles?.last_name}
+                  {(investment.profiles as any)?.first_name} {(investment.profiles as any)?.last_name}
                   <br />
-                  <span className="text-sm text-gray-500">{investment.profiles?.email}</span>
+                  <span className="text-sm text-gray-500">{(investment.profiles as any)?.email}</span>
                 </TableCell>
                 <TableCell>{investment.product_title}</TableCell>
                 <TableCell>{formatCurrency(investment.amount)}</TableCell>
                 <TableCell>{formatDate(investment.created_at)}</TableCell>
                 <TableCell>
-                  <Badge variant={investment.profiles?.kyc_status === "approved" ? "default" : "secondary"}>
-                    {investment.profiles?.kyc_status === "approved" ? "Genehmigt" : "Ausstehend"}
+                  <Badge variant={(investment.profiles as any)?.kyc_status === "approved" ? "default" : "secondary"}>
+                    {(investment.profiles as any)?.kyc_status === "approved" ? "Genehmigt" : "Ausstehend"}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -253,7 +252,7 @@ const AdminPendingSubscriptions = () => {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleApprove(investment.id)}
-                      disabled={investment.profiles?.kyc_status !== "approved" || !investment.signature_provided}
+                      disabled={(investment.profiles as any)?.kyc_status !== "approved" || !investment.signature_provided}
                     >
                       <CheckCircle className="h-4 w-4 text-green-500" />
                     </Button>
@@ -286,8 +285,8 @@ const AdminPendingSubscriptions = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="font-semibold">Kunde</h3>
-                  <p>{selectedInvestment.profiles?.first_name} {selectedInvestment.profiles?.last_name}</p>
-                  <p className="text-sm text-gray-500">{selectedInvestment.profiles?.email}</p>
+                  <p>{(selectedInvestment.profiles as any)?.first_name} {(selectedInvestment.profiles as any)?.last_name}</p>
+                  <p className="text-sm text-gray-500">{(selectedInvestment.profiles as any)?.email}</p>
                 </div>
                 <div>
                   <h3 className="font-semibold">Produkt</h3>
@@ -323,7 +322,7 @@ const AdminPendingSubscriptions = () => {
                 )}
               </div>
               
-              {selectedInvestment.profiles?.kyc_status !== "approved" && (
+              {(selectedInvestment.profiles as any)?.kyc_status !== "approved" && (
                 <div className="flex justify-end">
                   <Button
                     onClick={() => {
